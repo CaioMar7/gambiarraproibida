@@ -1,82 +1,48 @@
     async index(request, response) {
-        const { title, tags, locked } = request.query
-
-        let posts 
-
-            if(tags) {
-                if(locked) {
-                    if(Number(locked) === 1 ) {
-                        const filterTags = tags.split(",").map(tag => tag.trim())
-                        posts = await knex("tags")
-                        .select([
-                            "posts.id",
-                            "posts.title",
-                            "posts.description",
-                            "posts.locked",
-                            "posts.user_id",
-                        ])
-                        .where("posts.locked", 1)
-                        .whereIn("name", filterTags)
-                        .whereLike("posts.title", `%${title}%`)
-                        .innerJoin("posts", "posts.id", "tags.post_id")
-                        .orderBy("posts.title")
-                    } else {
-                        const filterTags = tags.split(",").map(tag => tag.trim())
-                        posts = await knex("tags")
-                        .select([
-                            "posts.id",
-                            "posts.title",
-                            "posts.description",
-                            "posts.locked",
-                            "posts.user_id",
-                        ])
-                        .where("posts.locked", 0)
-                        .whereIn("name", filterTags)
-                        .whereLike("posts.title", `%${title}%`)
-                        .innerJoin("posts", "posts.id", "tags.post_id")
-                        .orderBy("posts.title")
-                    }
-                } else {
-                    const filterTags = tags.split(",").map(tag => tag.trim())
-                    posts = await knex("tags")
-                    .select([
-                        "posts.id",
-                        "posts.title",
-                        "posts.description",
-                        "posts.locked",
-                        "posts.user_id",
-                    ])
-                    .whereIn("name", filterTags)
-                    .whereLike("posts.title", `%${title}%`)
-                    .innerJoin("posts", "posts.id", "tags.post_id")
-                    .orderBy("posts.title")
-                }
-
-            } else {
-                if(locked) {
-                    if(Number(locked) === 1 ) {
-                        posts = await knex("posts").orderBy("created_at", "desc")
-                        .whereLike("title", `%${title}%`)
-                        .where("locked", 1)
-                    } else {
-                        posts = await knex("posts").orderBy("created_at", "desc")
-                        .whereLike("title", `%${title}%`)
-                        .where("locked", 0)
-                    }
-                } else {
-                    posts = await knex("posts").orderBy("created_at", "desc")
-                    .whereLike("title", `%${title}%`)
-                }
-            }
-
+        const { title, tags, locked } = request.query;
+        let posts;
+      
+        const query = knex("posts")
+          .select([
+            "posts.id",
+            "posts.title",
+            "posts.description",
+            "posts.locked",
+            "posts.user_id",
+          ])
+          .orderBy("created_at", "desc");
+      
+        if (tags) {
+          const filterTags = tags.split(",").map((tag) => tag.trim());
+          query
+            .innerJoin("tags", "posts.id", "tags.post_id")
+            .whereIn("name", filterTags);
+        }
+      
+        if (locked) {
+          const isLocked = Number(locked)
+          if(isLocked === 1){
+              query.where("posts.locked", 1)
+          } else if(isLocked === 0) {
+            query.where("posts.locked", 0)
+          }
+        }
+      
+        if (title) {
+          query.where("posts.title", "like", `%${title}%`)
+        }
+      
+        posts = await query;
+      
         const taglist = await knex("tags")
-        const postWithTags = posts.map(post => {
-            const postTags = taglist.filter(tag => tag.post_id === post.id)
-            return {
-                ... post,
-                tags:postTags
-            }
+        const postWithTags = posts.map((post) => {
+          const postTags = taglist.filter((tag) => tag.post_id === post.id);
+          return {
+            ...post,
+            tags: postTags,
+          }
         })
+      
         return response.json(postWithTags)
-    }
+      }
 }
